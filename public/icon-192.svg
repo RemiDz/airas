@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
+  <rect width="192" height="192" rx="32" fill="#06061A"/>
+  <!-- Wind curves -->
+  <path d="M40 120c15-30 40-45 65-30s40 8 55-15" stroke="#A8DADC" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.4"/>
+  <path d="M30 96c20-35 55-50 85-30s50 10 62-20" stroke="#A8DADC" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M45 72c12-20 35-32 58-20s38 6 48-14" stroke="#A8DADC" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <!-- Dot accent -->
+  <circle cx="96" cy="96" r="4" fill="#A8DADC" opacity="0.3"/>
+</svg>

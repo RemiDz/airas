@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ─── */
+@theme {
+  --color-void: #06061A;
+  --color-void-deep: #0A0A2E;
+  --color-accent-primary: #A8DADC;
+  --color-accent-secondary: #4ECDC4;
+  --color-text-primary: #F0EEF8;
+  --color-text-secondary: #C8C4DC;
+  --color-status-good: #34D399;
+  --color-status-moderate: #F59E0B;
+  --color-status-poor: #EF4444;
+  --color-pollen: #FFD166;
+  --color-uv: #8B5CF6;
+  --color-ozone: #3B82F6;
+
+  --font-display: var(--font-cormorant);
+  --font-body: var(--font-lato);
+  --font-mono: var(--font-jetbrains);
+}
+
+/* ─── Root Variables ─── */
+:root {
+  --void: #06061A;
+  --void-deep: #0A0A2E;
+  --accent-primary: #A8DADC;
+  --accent-secondary: #4ECDC4;
+  --text-primary: #F0EEF8;
+  --text-secondary: #C8C4DC;
+  --status-good: #34D399;
+  --status-moderate: #F59E0B;
+  --status-poor: #EF4444;
+  --pollen: #FFD166;
+  --uv: #8B5CF6;
+  --ozone: #3B82F6;
+
+  --aqi-gradient: linear-gradient(
+    90deg,
+    #34D399 0%,
+    #A8DADC 20%,
+    #F59E0B 40%,
+    #F97316 60%,
+    #EF4444 80%,
+    #991B1B 100%
+  );
+
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Base ─── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--void);
+  color: var(--text-primary);
+  font-family: var(--font-body), sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Custom Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 218, 220, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 218, 220, 0.25);
+}
+
+/* ─── Glass Card ─── */
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 238, 248, 0.03) 0%,
+    rgba(200, 196, 220, 0.01) 100%
+  );
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  border: 1px solid rgba(200, 196, 220, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(240, 238, 248, 0.04);
+}
+
+.glass-card-hover {
+  transition: border-color 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring);
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(200, 196, 220, 0.14);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(240, 238, 248, 0.06);
+}
+
+/* ─── Section Divider ─── */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 0;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(200, 196, 220, 0.08);
+}
+
+.section-divider span {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: rgba(200, 196, 220, 0.4);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ─── Animations ─── */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+    opacity: 0.9;
+  }
+  50% {
+    box-shadow: 0 0 16px currentColor, 0 0 32px currentColor;
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes live-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* ─── Utility Classes ─── */
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-live-pulse {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ─── AQI Gradient Bar ─── */
+.aqi-bar {
+  background: var(--aqi-gradient);
+  border-radius: 999px;
+  height: 6px;
+}
+
+.aqi-dot {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* ─── Font Utility Classes ─── */
+.font-display {
+  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+}
+
+.font-body {
+  font-family: var(--font-lato), 'Lato', sans-serif;
+}
+
+.font-data {
+  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
+}
+
+/* ─── Skeleton Loading ─── */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    rgba(240, 238, 248, 0.03) 0%,
+    rgba(200, 196, 220, 0.01) 100%
+  );
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(240, 238, 248, 0.04),
+    transparent
+  );
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ─── Pollutant Card Hover Glow ─── */
+.pollutant-glow {
+  transition: box-shadow 0.4s var(--ease-spring), border-color 0.3s var(--ease-spring);
+}
+
+.pollutant-glow:hover {
+  border-color: rgba(200, 196, 220, 0.14);
+}
+
+/* ─── Focus States ─── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(168, 218, 220, 0.4);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Background Atmosphere ─── */
+.atmospheric-bg {
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    #0A0A2E 0%,
+    #06061A 70%,
+    #040410 100%
+  );
+}
+
+/* ─── Horizontal Scroll (hide scrollbar on forecast strip) ─── */
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+.scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

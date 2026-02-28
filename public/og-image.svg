@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0A0A2E"/>
+      <stop offset="100%" stop-color="#06061A"/>
+    </radialGradient>
+    <linearGradient id="aqi" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="20%" stop-color="#A8DADC"/>
+      <stop offset="40%" stop-color="#F59E0B"/>
+      <stop offset="60%" stop-color="#F97316"/>
+      <stop offset="80%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#991B1B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Wind curves -->
+  <path d="M100 400c60-80 160-120 260-80s180 20 240-40" stroke="#A8DADC" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.15"/>
+  <path d="M50 350c80-100 200-140 320-90s200 30 280-50" stroke="#A8DADC" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.1"/>
+  <path d="M150 450c50-60 140-90 220-60s160 15 200-30" stroke="#A8DADC" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.08"/>
+  <!-- Title -->
+  <text x="600" y="240" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-weight="300" fill="#F0EEF8" letter-spacing="8">Airas</text>
+  <!-- Subtitle -->
+  <text x="600" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="300" fill="#C8C4DC" opacity="0.7" letter-spacing="2">Air Quality Intelligence for Practitioners</text>
+  <!-- AQI gradient bar -->
+  <rect x="300" y="360" width="600" height="6" rx="3" fill="url(#aqi)" opacity="0.6"/>
+  <!-- Bottom tagline -->
+  <text x="600" y="440" text-anchor="middle" font-family="monospace" font-size="14" fill="#A8DADC" opacity="0.5" letter-spacing="4">BREATHWORK  ·  SOUND HEALING  ·  WELLNESS</text>
+  <!-- URL -->
+  <text x="600" y="540" text-anchor="middle" font-family="monospace" font-size="16" fill="#C8C4DC" opacity="0.3" letter-spacing="3">airas.app</text>
+  <!-- Border -->
+  <rect x="1" y="1" width="1198" height="628" rx="0" stroke="#C8C4DC" stroke-width="1" fill="none" opacity="0.06"/>
+</svg>
