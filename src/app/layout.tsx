@@ -69,17 +69,24 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#A8DADC" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+        {/* Privacy-friendly analytics by Plausible */}
+        <Script
+          async
+          src="https://plausible.io/js/pa-urmm7xPEkC0fOZwEd029z.js"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="plausible-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()`,
+          }}
+        />
       </head>
       <body
         className={`${cormorant.variable} ${lato.variable} ${jetbrains.variable} antialiased`}
       >
         {children}
-        <Script
-          defer
-          data-domain="airas.app"
-          src="https://plausible.io/js/script.js"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   )
