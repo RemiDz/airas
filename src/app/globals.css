@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* ─── Hide Scrollbar (match ecosystem style) ─── */
+::-webkit-scrollbar {
+  display: none;
+}
+
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ─── Design Tokens ─── */
 @theme {
   --color-void: #06061A;
