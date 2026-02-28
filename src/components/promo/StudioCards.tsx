@@ -2,36 +2,29 @@
 
 import { forwardRef } from 'react'
 import type { AirQualityResponse, Location } from '@/lib/types'
-import { getAqiBand, getAqiBarPosition, getPractitionerTagline } from '@/lib/aqi-utils'
+import { getAqiBand, getPractitionerTagline, getPollutantBand } from '@/lib/aqi-utils'
 import { getUvBand, getUvExposureGuidance } from '@/lib/uv-utils'
 import { generateSessionGuidance } from '@/lib/practitioner'
 import { hasPollenData, extractPollenTypes, getOverallPollenLevel, getPollenBand } from '@/lib/pollen-utils'
 import { computeDailyForecasts, findBestWindows } from '@/lib/forecast-utils'
 
-// ── Shared card wrapper ──
+// ── Types ──
 
 type CardFormat = 'post' | 'story'
 
-function CardShell({
-  format,
-  children,
-}: {
-  format: CardFormat
-  children: React.ReactNode
-}) {
-  const w = format === 'post' ? 1080 : 1080
-  const h = format === 'post' ? 1080 : 1920
-  const pad = format === 'post' ? 32 : 40
+// ── Shared card shell ──
 
+function CardShell({ format, children }: { format: CardFormat; children: React.ReactNode }) {
+  const h = format === 'post' ? 1080 : 1920
   return (
     <div
       style={{
-        width: w / 3,
+        width: 360,
         height: h / 3,
         backgroundColor: '#06061A',
         border: '1px solid rgba(200,196,220,0.08)',
         borderRadius: 8,
-        padding: pad / 3,
+        padding: format === 'post' ? 11 : 14,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -43,51 +36,41 @@ function CardShell({
   )
 }
 
-// ── Pure CSS AQI gradient bar (NOT Recharts) ──
+// ── Shared helpers ──
 
 function AqiBar({ value }: { value: number }) {
   const pos = Math.min((value / 100) * 100, 100)
   return (
-    <div style={{ position: 'relative', width: '100%', height: 6, borderRadius: 3, marginTop: 4, marginBottom: 4 }}>
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          borderRadius: 3,
-          background: 'linear-gradient(90deg, #34D399 0%, #A8DADC 20%, #F59E0B 40%, #F97316 60%, #EF4444 80%, #991B1B 100%)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${pos}%`,
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          backgroundColor: '#fff',
-          boxShadow: '0 0 6px rgba(168,218,220,0.6)',
-        }}
-      />
+    <div style={{ position: 'relative', width: '100%', height: 5, borderRadius: 3 }}>
+      <div style={{ width: '100%', height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #34D399 0%, #A8DADC 20%, #F59E0B 40%, #F97316 60%, #EF4444 80%, #991B1B 100%)' }} />
+      <div style={{ position: 'absolute', left: `${pos}%`, top: '50%', transform: 'translate(-50%, -50%)', width: 9, height: 9, borderRadius: '50%', backgroundColor: '#fff', boxShadow: '0 0 6px rgba(168,218,220,0.6)' }} />
     </div>
   )
 }
 
-// ── Pure SVG pollen bar ──
+function StatusDot({ colour }: { colour: string }) {
+  return <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: colour, flexShrink: 0 }} />
+}
 
-function PollenBarSvg({ value, maxVal = 80, colour }: { value: number; maxVal?: number; colour: string }) {
-  const pct = Math.min((value / maxVal) * 100, 100)
+function GlassSection({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-      <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'rgba(200,196,220,0.08)' }}>
-        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: colour, transition: 'width 0.3s' }} />
-      </div>
+    <div style={{ background: 'rgba(200,196,220,0.03)', border: '1px solid rgba(200,196,220,0.05)', borderRadius: 6, padding: 8, ...style }}>
+      {children}
     </div>
   )
 }
 
-// ── Card 1: The Hook (Daily AQI) ──
+function dotColour(aqi: number): string {
+  if (aqi <= 20) return '#34D399'
+  if (aqi <= 40) return '#A8DADC'
+  if (aqi <= 60) return '#F59E0B'
+  if (aqi <= 80) return '#F97316'
+  return '#EF4444'
+}
+
+// ════════════════════════════════════════════════
+// CARD 1 — DAILY AIR INTELLIGENCE (the workhorse)
+// ════════════════════════════════════════════════
 
 export const Card1Daily = forwardRef<
   HTMLDivElement,
@@ -96,112 +79,24 @@ export const Card1Daily = forwardRef<
   const aqi = data.current.european_aqi
   const band = getAqiBand(aqi)
   const tagline = getPractitionerTagline(aqi)
-  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  const guidance = generateSessionGuidance(data)
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   const locName = `${location.name}${location.country ? `, ${location.country}` : ''}`
 
-  return (
-    <div ref={ref}>
-      <CardShell format={format}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-          {/* Location */}
-          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#C8C4DC', opacity: 0.7, marginBottom: format === 'story' ? 24 : 12 }}>
-            ○ {locName}
-          </div>
+  // Pollutant data with status
+  const pollutants = [
+    { label: 'PM2.5', value: data.current.pm2_5, key: 'pm2_5', unit: 'μg/m³' },
+    { label: 'PM10', value: data.current.pm10, key: 'pm10', unit: 'μg/m³' },
+    { label: 'O₃', value: Math.round(data.current.ozone), key: 'ozone', unit: 'μg/m³' },
+    { label: 'NO₂', value: Math.round(data.current.nitrogen_dioxide), key: 'nitrogen_dioxide', unit: 'μg/m³' },
+  ]
 
-          {/* AQI Number */}
-          <div
-            style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: format === 'story' ? 72 : 56,
-              fontWeight: 500,
-              color: band.colour,
-              lineHeight: 1,
-              textShadow: `0 0 30px ${band.colour}40`,
-            }}
-          >
-            {aqi}
-          </div>
+  // UV + Pollen row
+  const uv = data.current.uv_index
+  const uvBand = getUvBand(uv)
+  const pollenLevel = getOverallPollenLevel(data)
 
-          {/* Label */}
-          <div
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: format === 'story' ? 22 : 18,
-              fontWeight: 300,
-              color: band.colour,
-              marginTop: 4,
-              marginBottom: format === 'story' ? 20 : 12,
-            }}
-          >
-            {band.label}
-          </div>
-
-          {/* AQI Bar */}
-          <div style={{ width: '80%', marginBottom: 4 }}>
-            <AqiBar value={aqi} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.4 }}>
-              <span>0</span>
-              <span>AQI</span>
-              <span>100+</span>
-            </div>
-          </div>
-
-          {/* Tagline */}
-          <div
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: 12,
-              fontStyle: 'italic',
-              color: '#C8C4DC',
-              opacity: 0.8,
-              marginTop: format === 'story' ? 16 : 10,
-              marginBottom: format === 'story' ? 20 : 12,
-              maxWidth: '85%',
-              lineHeight: 1.4,
-            }}
-          >
-            &ldquo;{tagline}&rdquo;
-          </div>
-
-          {/* Quick stats */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.6 }}>
-            PM2.5: {data.current.pm2_5} · O₃: {Math.round(data.current.ozone)} · UV: {data.current.uv_index}
-          </div>
-
-          {/* Spacer for story */}
-          {format === 'story' && <div style={{ flex: 1, minHeight: 20 }} />}
-
-          {/* Branding */}
-          <div style={{ marginTop: format === 'story' ? 0 : 16 }}>
-            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 14, fontWeight: 500, color: '#A8DADC', letterSpacing: 1 }}>
-              airas.app
-            </div>
-            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.5, marginTop: 2 }}>
-              Air Intelligence for Practitioners
-            </div>
-          </div>
-
-          {/* Date */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.3, marginTop: 8 }}>
-            {dateStr}
-          </div>
-        </div>
-      </CardShell>
-    </div>
-  )
-})
-
-// ── Card 2: The Science (24h AQI Trend — pure SVG) ──
-
-export const Card2Trend = forwardRef<
-  HTMLDivElement,
-  { data: AirQualityResponse; location: Location; format: CardFormat }
->(function Card2Trend({ data, location, format }, ref) {
-  const aqi = data.current.european_aqi
-  const band = getAqiBand(aqi)
-  const locName = `${location.name}${location.country ? `, ${location.country}` : ''}`
-
-  // Extract last 24h of data
+  // 24h trend SVG
   const now = new Date()
   const hourly = data.hourly
   let endIdx = 0
@@ -210,17 +105,8 @@ export const Card2Trend = forwardRef<
   }
   const startIdx = Math.max(0, endIdx - 24)
   const slice = hourly.european_aqi.slice(startIdx, endIdx + 1)
-  const times = hourly.time.slice(startIdx, endIdx + 1)
-
-  // Find peak
-  let peakVal = 0
-  let peakIdx = 0
-  slice.forEach((v, i) => { if (v > peakVal) { peakVal = v; peakIdx = i } })
-  const peakTime = times[peakIdx] ? new Date(times[peakIdx]).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
-
-  // Build SVG path
-  const chartW = 240
-  const chartH = 80
+  const chartW = 300
+  const chartH = 50
   const maxVal = Math.max(60, ...slice)
   const points = slice.map((v, i) => ({
     x: (i / Math.max(slice.length - 1, 1)) * chartW,
@@ -228,137 +114,119 @@ export const Card2Trend = forwardRef<
   }))
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   const areaPath = `${linePath} L${chartW},${chartH} L0,${chartH} Z`
+  let peakVal = 0, peakIdx = 0
+  slice.forEach((v, i) => { if (v > peakVal) { peakVal = v; peakIdx = i } })
+
+  // Key modalities (top 4 for inline display)
+  const keyMods = guidance.modalities.slice(0, 4)
+
+  const isStory = format === 'story'
+  const gap = isStory ? 10 : 6
 
   return (
     <div ref={ref}>
       <CardShell format={format}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: format === 'story' ? 'center' : 'flex-start' }}>
-          {/* Header */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>
-            24H Air Quality Trend
-          </div>
-          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#C8C4DC', opacity: 0.6, marginBottom: format === 'story' ? 24 : 16 }}>
-            {locName}
-          </div>
-
-          {/* SVG Chart */}
-          <div style={{ background: 'rgba(200,196,220,0.03)', borderRadius: 6, padding: '12px 8px', marginBottom: format === 'story' ? 24 : 12 }}>
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }} preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#A8DADC" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#A8DADC" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {/* Grid lines */}
-              {[0.25, 0.5, 0.75].map(p => (
-                <line key={p} x1="0" y1={chartH * p} x2={chartW} y2={chartH * p} stroke="rgba(200,196,220,0.06)" strokeWidth="0.5" />
-              ))}
-              {/* Area fill */}
-              <path d={areaPath} fill="url(#trendFill)" />
-              {/* Line */}
-              <path d={linePath} fill="none" stroke="#A8DADC" strokeWidth="1.5" strokeLinejoin="round" />
-              {/* Peak dot */}
-              {points[peakIdx] && (
-                <circle cx={points[peakIdx].x} cy={points[peakIdx].y} r="3" fill="#F59E0B" stroke="#06061A" strokeWidth="1" />
-              )}
-            </svg>
-            {/* Time labels */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.35, marginTop: 4 }}>
-              {[0, 6, 12, 18].map(h => (
-                <span key={h}>{String(h).padStart(2, '0')}:00</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#C8C4DC', lineHeight: 1.8 }}>
-            <div>Peak: <span style={{ color: '#F59E0B' }}>{peakVal}</span> at {peakTime}</div>
-            <div>Current: <span style={{ color: band.colour }}>{aqi}</span> ({band.label})</div>
-          </div>
-
-          {format === 'story' && <div style={{ flex: 1, minHeight: 20 }} />}
-
-          {/* CTA */}
-          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#A8DADC', marginTop: format === 'story' ? 0 : 16, opacity: 0.7 }}>
-            Track your air → <span style={{ fontWeight: 700 }}>airas.app</span>
-          </div>
+        {/* ── Top: Location + Date ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: gap }}>
+          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#C8C4DC', opacity: 0.7 }}>○ {locName}</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.35 }}>{dateStr}</div>
         </div>
-      </CardShell>
-    </div>
-  )
-})
 
-// ── Card 3: Modality Checklist ──
-
-export const Card3Modalities = forwardRef<
-  HTMLDivElement,
-  { data: AirQualityResponse; format: CardFormat }
->(function Card3Modalities({ data, format }, ref) {
-  const aqi = data.current.european_aqi
-  const uv = data.current.uv_index
-  const pollenLevel = getOverallPollenLevel(data)
-  const guidance = generateSessionGuidance(data)
-
-  return (
-    <div ref={ref}>
-      <CardShell format={format}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: format === 'story' ? 'center' : 'flex-start' }}>
-          {/* Header */}
-          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 18, fontWeight: 500, color: '#F0EEF8', lineHeight: 1.2, marginBottom: 4 }}>
-            Today&apos;s Breathwork
+        {/* ── AQI Hero ── */}
+        <GlassSection style={{ textAlign: 'center', marginBottom: gap, padding: isStory ? 14 : 10 }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: isStory ? 52 : 42, fontWeight: 500, color: band.colour, lineHeight: 1, textShadow: `0 0 24px ${band.colour}35` }}>
+            {aqi}
           </div>
-          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 18, fontWeight: 500, color: '#F0EEF8', marginBottom: format === 'story' ? 20 : 12 }}>
-            Conditions
+          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: isStory ? 16 : 14, fontWeight: 300, color: band.colour, marginTop: 2, marginBottom: isStory ? 8 : 6 }}>
+            {band.label}
           </div>
-
-          {/* Quick stats */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.6, marginBottom: format === 'story' ? 24 : 14 }}>
-            AQI: {aqi} · UV: {uv} · Pollen: {pollenLevel?.label ?? 'N/A'}
+          <AqiBar value={aqi} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.3, marginTop: 2 }}>
+            <span>0</span><span>AQI</span><span>100+</span>
           </div>
+        </GlassSection>
 
-          {/* Modality list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: format === 'story' ? 10 : 6, marginBottom: format === 'story' ? 24 : 14 }}>
-            {guidance.modalities.map((m) => (
-              <div key={m.name}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                  <span style={{ fontSize: 12, lineHeight: 1.4 }}>{m.safe ? '✅' : m.note ? '⚠️' : '❌'}</span>
-                  <div>
-                    <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', lineHeight: 1.3 }}>
-                      {m.name}
-                    </div>
-                    {m.note && (
-                      <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.5, marginTop: 1, lineHeight: 1.3 }}>
-                        {m.note}
-                      </div>
-                    )}
-                  </div>
+        {/* ── Data Grid (2x3) ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: gap }}>
+          {pollutants.map(p => {
+            const pBand = getPollutantBand(p.key, p.value)
+            return (
+              <GlassSection key={p.label} style={{ padding: '5px 7px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <StatusDot colour={pBand.colour} />
+                <div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.5, letterSpacing: 0.5 }}>{p.label}</div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, color: '#F0EEF8', lineHeight: 1.1 }}>{p.value}</div>
                 </div>
+              </GlassSection>
+            )
+          })}
+          {/* UV */}
+          <GlassSection style={{ padding: '5px 7px', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <StatusDot colour={uvBand.colour} />
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.5, letterSpacing: 0.5 }}>UV</div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, color: '#F0EEF8', lineHeight: 1.1 }}>{uv} <span style={{ fontSize: 7, opacity: 0.5 }}>{uvBand.label}</span></div>
+            </div>
+          </GlassSection>
+          {/* Pollen or Dust */}
+          <GlassSection style={{ padding: '5px 7px', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <StatusDot colour={pollenLevel?.colour ?? '#34D399'} />
+            <div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.5, letterSpacing: 0.5 }}>
+                {pollenLevel ? 'POLLEN' : 'DUST'}
               </div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 500, color: '#F0EEF8', lineHeight: 1.1 }}>
+                {pollenLevel ? pollenLevel.label : `${data.current.dust?.toFixed(0) ?? '—'}`}
+                {!pollenLevel && <span style={{ fontSize: 7, opacity: 0.5 }}> μg/m³</span>}
+              </div>
+            </div>
+          </GlassSection>
+        </div>
+
+        {/* ── 24h Trend SVG ── */}
+        <GlassSection style={{ marginBottom: gap, padding: '6px 6px 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 1, textTransform: 'uppercase' }}>24h Trend</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#F59E0B' }}>Peak: {peakVal}</span>
+          </div>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: isStory ? 60 : 40 }} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="cf1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#A8DADC" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#A8DADC" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={areaPath} fill="url(#cf1)" />
+            <path d={linePath} fill="none" stroke="#A8DADC" strokeWidth="1.2" strokeLinejoin="round" />
+            {points[peakIdx] && <circle cx={points[peakIdx].x} cy={points[peakIdx].y} r="2.5" fill="#F59E0B" stroke="#06061A" strokeWidth="0.8" />}
+          </svg>
+        </GlassSection>
+
+        {/* ── Guidance + Modalities ── */}
+        <GlassSection style={{ marginBottom: gap, padding: '6px 8px' }}>
+          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 11, fontStyle: 'italic', color: '#C8C4DC', opacity: 0.8, lineHeight: 1.3, marginBottom: 5 }}>
+            &ldquo;{tagline}&rdquo;
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 8px' }}>
+            {keyMods.map(m => (
+              <span key={m.name} style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: m.safe ? '#34D399' : '#F59E0B', whiteSpace: 'nowrap' }}>
+                {m.safe ? '✓' : '⚠'} {m.name}
+              </span>
             ))}
           </div>
+        </GlassSection>
 
-          {/* Summary */}
-          <div
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: 11,
-              fontStyle: 'italic',
-              color: '#C8C4DC',
-              opacity: 0.7,
-              lineHeight: 1.4,
-              borderTop: '1px solid rgba(200,196,220,0.08)',
-              paddingTop: 10,
-            }}
-          >
-            &ldquo;{guidance.summary.split('.')[0]}.&rdquo;
+        {/* Story spacer */}
+        {isStory && <div style={{ flex: 1, minHeight: 4 }} />}
+
+        {/* ── Branding ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 13, fontWeight: 500, color: '#A8DADC', letterSpacing: 1 }}>airas.app</div>
+            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 7, color: '#C8C4DC', opacity: 0.4 }}>Air Intelligence for Practitioners</div>
           </div>
-
-          {format === 'story' && <div style={{ flex: 1, minHeight: 20 }} />}
-
-          {/* Branding */}
-          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 13, fontWeight: 500, color: '#A8DADC', marginTop: format === 'story' ? 0 : 12, letterSpacing: 1 }}>
-            airas.app
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.25 }}>
+            Live data
           </div>
         </div>
       </CardShell>
@@ -366,202 +234,210 @@ export const Card3Modalities = forwardRef<
   )
 })
 
-// ── Card 4: Pollen & UV Report ──
+// ════════════════════════════════════════════════
+// CARD 2 — BREATHWORK ADVISORY (practitioner-focused)
+// ════════════════════════════════════════════════
 
-export const Card4PollenUv = forwardRef<
+export const Card2Advisory = forwardRef<
   HTMLDivElement,
-  { data: AirQualityResponse; format: CardFormat }
->(function Card4PollenUv({ data, format }, ref) {
+  { data: AirQualityResponse; location: Location; format: CardFormat }
+>(function Card2Advisory({ data, location, format }, ref) {
+  const aqi = data.current.european_aqi
   const uv = data.current.uv_index
   const uvBand = getUvBand(uv)
   const uvGuidance = getUvExposureGuidance(uv)
-  const pollenAvailable = hasPollenData(data)
+  const guidance = generateSessionGuidance(data)
+  const pollenLevel = getOverallPollenLevel(data)
   const pollenTypes = extractPollenTypes(data)
-  const overallPollen = getOverallPollenLevel(data)
-  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  const activePollen = pollenTypes.filter(t => t.currentValue !== null && t.currentValue > 0)
+  const topPollen = activePollen.length > 0 ? activePollen.reduce((a, b) => (a.currentValue! > b.currentValue! ? a : b)) : null
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const locName = `${location.name}${location.country ? `, ${location.country}` : ''}`
 
-  const treePollen = pollenTypes.filter(t => t.category === 'tree' && t.currentValue !== null && t.currentValue > 0)
-  const grassPollen = pollenTypes.filter(t => t.category === 'grass' && t.currentValue !== null && t.currentValue > 0)
+  const ratingConfig: Record<string, { label: string; colour: string }> = {
+    excellent: { label: 'Excellent', colour: '#34D399' },
+    good: { label: 'Good', colour: '#A8DADC' },
+    caution: { label: 'Caution', colour: '#F59E0B' },
+    'indoor-only': { label: 'Indoor Only', colour: '#F97316' },
+    avoid: { label: 'Avoid Outdoor', colour: '#EF4444' },
+  }
+  const rating = ratingConfig[guidance.overallRating] ?? ratingConfig.good
 
-  // Fallback: atmospheric data
-  const showAtmospheric = !pollenAvailable
+  const isStory = format === 'story'
+  const gap = isStory ? 10 : 6
 
   return (
     <div ref={ref}>
       <CardShell format={format}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: format === 'story' ? 'center' : 'flex-start' }}>
-          {/* Header */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>
-            {showAtmospheric ? 'Atmospheric Report' : 'Pollen & UV Report'}
+        {/* ── Header ── */}
+        <div style={{ marginBottom: gap }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.4, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>
+            Today&apos;s Breathwork Conditions
           </div>
-          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#C8C4DC', opacity: 0.4, marginBottom: format === 'story' ? 24 : 14 }}>
-            {dateStr}
-          </div>
-
-          {/* UV Section */}
-          <div style={{ marginBottom: format === 'story' ? 20 : 12 }}>
-            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 12, color: '#F0EEF8', marginBottom: 4 }}>
-              ☀️ UV Index: <span style={{ color: uvBand.colour, fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{uv}</span> ({uvBand.label})
-            </div>
-            {/* UV bar */}
-            <div style={{ width: '100%', height: 5, borderRadius: 3, background: 'rgba(200,196,220,0.08)', marginBottom: 4 }}>
-              <div style={{ width: `${Math.min((uv / 14) * 100, 100)}%`, height: '100%', borderRadius: 3, background: `linear-gradient(90deg, #34D399, ${uvBand.colour})` }} />
-            </div>
-            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.5 }}>
-              Safe outdoor time: {uvGuidance.safeMinutes}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#C8C4DC', opacity: 0.6 }}>{locName} · {dateStr}</div>
+            {/* Rating badge */}
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 500,
+              color: rating.colour, backgroundColor: `${rating.colour}12`,
+              border: `1px solid ${rating.colour}30`, borderRadius: 6, padding: '2px 8px',
+            }}>
+              {rating.label}
             </div>
           </div>
+        </div>
 
-          {/* Pollen Section or Atmospheric fallback */}
-          {!showAtmospheric ? (
-            <div>
-              {treePollen.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', marginBottom: 6 }}>🌳 Tree Pollen</div>
-                  {treePollen.map(t => {
-                    const band = getPollenBand(t.currentValue!)
-                    return (
-                      <div key={t.key} style={{ marginBottom: 4 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', marginBottom: 2 }}>
-                          <span>{t.name}</span>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', opacity: 0.6 }}>{t.currentValue} grains/m³</span>
-                        </div>
-                        <PollenBarSvg value={t.currentValue!} colour={band.colour} />
-                      </div>
-                    )
-                  })}
+        {/* ── Full Modality Checklist ── */}
+        <GlassSection style={{ marginBottom: gap, padding: isStory ? 10 : 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isStory ? 7 : 5 }}>
+            {guidance.modalities.map(m => (
+              <div key={m.name} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <span style={{ fontSize: 11, lineHeight: 1.2, flexShrink: 0 }}>
+                  {m.safe ? '✅' : m.note ? '⚠️' : '❌'}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', lineHeight: 1.2 }}>{m.name}</div>
+                  {m.note && (
+                    <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 8, color: '#C8C4DC', opacity: 0.5, lineHeight: 1.3, marginTop: 1 }}>{m.note}</div>
+                  )}
                 </div>
-              )}
-
-              {grassPollen.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', marginBottom: 6 }}>🌾 Grass & Weed Pollen</div>
-                  {grassPollen.map(t => {
-                    const band = getPollenBand(t.currentValue!)
-                    return (
-                      <div key={t.key} style={{ marginBottom: 4 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', marginBottom: 2 }}>
-                          <span>{t.name}</span>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', opacity: 0.6 }}>{t.currentValue} grains/m³</span>
-                        </div>
-                        <PollenBarSvg value={t.currentValue!} colour={band.colour} />
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Practitioner note */}
-              {overallPollen && (
-                <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.6, borderTop: '1px solid rgba(200,196,220,0.08)', paddingTop: 8, lineHeight: 1.4 }}>
-                  🫁 {overallPollen.label === 'None/Low'
-                    ? 'Low pollen — outdoor breathwork unaffected'
-                    : overallPollen.label === 'Moderate'
-                    ? 'Moderate pollen — ask clients about hay fever before outdoor sessions'
-                    : 'High pollen — consider indoor alternatives for allergy sufferers'}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', marginBottom: 8 }}>🌍 Atmospheric Composition</div>
-              {[
-                { label: 'CO₂', value: data.hourly.carbon_dioxide?.[0], unit: 'ppm' },
-                { label: 'Dust', value: data.current.dust, unit: 'μg/m³' },
-                { label: 'Aerosol Depth', value: data.hourly.aerosol_optical_depth?.[0], unit: '' },
-              ].map(item => (
-                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', marginBottom: 4 }}>
-                  <span style={{ opacity: 0.6 }}>{item.label}</span>
-                  <span>{item.value != null ? `${typeof item.value === 'number' ? item.value.toFixed(1) : item.value} ${item.unit}` : '—'}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {format === 'story' && <div style={{ flex: 1, minHeight: 20 }} />}
-
-          {/* Branding */}
-          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 13, fontWeight: 500, color: '#A8DADC', marginTop: format === 'story' ? 0 : 14, letterSpacing: 1, textAlign: 'center' }}>
-            airas.app
+              </div>
+            ))}
           </div>
+        </GlassSection>
+
+        {/* ── Info strip: UV + Pollen + Best Window ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: gap }}>
+          {/* UV */}
+          <GlassSection style={{ padding: '6px 7px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 0.5, marginBottom: 2 }}>☀️ UV EXPOSURE</div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 500, color: uvBand.colour, lineHeight: 1 }}>{uv}</div>
+            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 8, color: '#C8C4DC', opacity: 0.5, marginTop: 2 }}>Safe: {uvGuidance.safeMinutes}</div>
+          </GlassSection>
+
+          {/* Pollen */}
+          <GlassSection style={{ padding: '6px 7px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 0.5, marginBottom: 2 }}>🌿 TOP POLLEN</div>
+            {topPollen ? (
+              <>
+                <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', lineHeight: 1.2 }}>{topPollen.name}</div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: pollenLevel?.colour ?? '#C8C4DC', marginTop: 1 }}>
+                  {topPollen.currentValue} grains/m³ ({pollenLevel?.label ?? '—'})
+                </div>
+              </>
+            ) : (
+              <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#34D399', lineHeight: 1.2 }}>None active</div>
+            )}
+          </GlassSection>
+        </div>
+
+        {/* Best window */}
+        <GlassSection style={{ marginBottom: gap, padding: '6px 8px' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 0.5, marginBottom: 2 }}>🌟 BEST WINDOW TODAY</div>
+          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#A8DADC', lineHeight: 1.3 }}>{guidance.nextWindow}</div>
+        </GlassSection>
+
+        {isStory && <div style={{ flex: 1, minHeight: 4 }} />}
+
+        {/* ── Branding ── */}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 13, fontWeight: 500, color: '#A8DADC', letterSpacing: 1 }}>airas.app</div>
+          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 7, color: '#C8C4DC', opacity: 0.4 }}>Air Intelligence for Practitioners</div>
         </div>
       </CardShell>
     </div>
   )
 })
 
-// ── Card 5: The CTA (5-Day Forecast) ──
+// ════════════════════════════════════════════════
+// CARD 3 — WEEKLY FORECAST (planning card)
+// ════════════════════════════════════════════════
 
-export const Card5Forecast = forwardRef<
+export const Card3Forecast = forwardRef<
   HTMLDivElement,
-  { data: AirQualityResponse; format: CardFormat }
->(function Card5Forecast({ data, format }, ref) {
+  { data: AirQualityResponse; location: Location; format: CardFormat }
+>(function Card3Forecast({ data, location, format }, ref) {
   const forecasts = computeDailyForecasts(data)
   const windows = findBestWindows(data)
   const best = windows[0]
+  const locName = `${location.name}${location.country ? `, ${location.country}` : ''}`
 
-  // Status dot colour helper
-  function dotColour(aqi: number): string {
-    if (aqi <= 20) return '#34D399'
-    if (aqi <= 40) return '#A8DADC'
-    if (aqi <= 60) return '#F59E0B'
-    if (aqi <= 80) return '#F97316'
-    return '#EF4444'
-  }
+  // Pollen trend indicator
+  const pollenTypes = extractPollenTypes(data)
+  const hasPollen = hasPollenData(data)
+  const pollenLevel = getOverallPollenLevel(data)
+
+  const isStory = format === 'story'
+  const gap = isStory ? 10 : 6
 
   return (
     <div ref={ref}>
       <CardShell format={format}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: format === 'story' ? 'center' : 'flex-start' }}>
-          {/* Header */}
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: format === 'story' ? 24 : 14 }}>
-            Your 5-Day Air Forecast
+        {/* ── Header ── */}
+        <div style={{ marginBottom: gap }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.4, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>
+            5-Day Air Forecast
           </div>
+          <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#C8C4DC', opacity: 0.6 }}>{locName}</div>
+        </div>
 
-          {/* Forecast strip */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: format === 'story' ? 24 : 14, textAlign: 'center' }}>
+        {/* ── Forecast strip — each day as a column ── */}
+        <GlassSection style={{ marginBottom: gap, padding: isStory ? 12 : 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
             {forecasts.map((f, i) => (
               <div key={i} style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.6, marginBottom: 4 }}>{f.dayLabel}</div>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: dotColour(f.avgAqi), margin: '0 auto 4px', boxShadow: `0 0 6px ${dotColour(f.avgAqi)}40` }} />
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 500, color: '#F0EEF8' }}>{f.avgAqi}</div>
-                <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 8, color: '#C8C4DC', opacity: 0.5, marginTop: 2 }}>{f.aqiBand.label}</div>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: dotColour(f.avgAqi), margin: '0 auto 4px', boxShadow: `0 0 8px ${dotColour(f.avgAqi)}40` }} />
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: isStory ? 18 : 15, fontWeight: 500, color: '#F0EEF8' }}>{f.avgAqi}</div>
+                <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 7, color: '#C8C4DC', opacity: 0.5, marginTop: 1 }}>{f.aqiBand.label}</div>
+                {/* UV + session icon */}
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.35, marginTop: 3 }}>UV {f.peakUv}</div>
+                <div style={{ fontSize: 10, marginTop: 2 }}>
+                  {f.sessionSafe === 'good' ? '✓' : f.sessionSafe === 'caution' ? '⚠' : '✗'}
+                </div>
               </div>
             ))}
           </div>
+        </GlassSection>
 
-          {/* Best window */}
-          {best && (
-            <div style={{ background: 'rgba(168,218,220,0.05)', borderRadius: 8, padding: '10px 12px', marginBottom: format === 'story' ? 24 : 14 }}>
-              <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#F0EEF8', marginBottom: 4 }}>
-                🌟 Best window:
-              </div>
-              <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#A8DADC' }}>
-                {best.start.toLocaleDateString('en-GB', { weekday: 'long' })} {best.start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}–{best.end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} — AQI {best.avgAqi}
-              </div>
-              <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 9, color: '#C8C4DC', opacity: 0.5, marginTop: 2 }}>
-                {best.recommendation}
-              </div>
+        {/* ── Best session window ── */}
+        {best && (
+          <GlassSection style={{ marginBottom: gap, padding: '8px 10px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 0.5, marginBottom: 3 }}>🌟 BEST SESSION WINDOW</div>
+            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 12, color: '#A8DADC', marginBottom: 2 }}>
+              {best.start.toLocaleDateString('en-GB', { weekday: 'long' })} {best.start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}–{best.end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
             </div>
-          )}
-
-          {/* Divider */}
-          <div style={{ width: '60%', height: 1, background: 'rgba(200,196,220,0.08)', margin: '0 auto', marginBottom: format === 'story' ? 20 : 12 }} />
-
-          {format === 'story' && <div style={{ flex: 1, minHeight: 20 }} />}
-
-          {/* CTA */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 13, fontStyle: 'italic', color: '#C8C4DC', opacity: 0.7, lineHeight: 1.4, marginBottom: 10 }}>
-              Plan sessions with the<br />atmosphere, not against it.
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#C8C4DC', opacity: 0.5 }}>
+              AQI {best.avgAqi} · UV {best.peakUv} · {best.recommendation}
             </div>
-            <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 15, fontWeight: 500, color: '#A8DADC', letterSpacing: 1 }}>
-              airas.app
-            </div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: '#C8C4DC', opacity: 0.35, marginTop: 4 }}>
-              Free · No signup · Live data
+          </GlassSection>
+        )}
+
+        {/* ── Pollen trend ── */}
+        <GlassSection style={{ marginBottom: gap, padding: '6px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.4, letterSpacing: 0.5 }}>🌿 POLLEN</div>
+            <div style={{ fontFamily: 'Lato, sans-serif', fontSize: 10, color: pollenLevel?.colour ?? '#34D399', marginTop: 1 }}>
+              {pollenLevel?.label ?? (hasPollen ? 'Low' : 'N/A')}
             </div>
           </div>
+          {/* Mini forecast bar visual */}
+          <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+            {forecasts.map((f, i) => (
+              <div key={i} style={{ width: 8, height: Math.max(4, (f.avgAqi / 80) * 24), borderRadius: 2, backgroundColor: dotColour(f.avgAqi), opacity: 0.6 }} />
+            ))}
+          </div>
+        </GlassSection>
+
+        {isStory && <div style={{ flex: 1, minHeight: 4 }} />}
+
+        {/* ── CTA ── */}
+        <div style={{ textAlign: 'center', borderTop: '1px solid rgba(200,196,220,0.06)', paddingTop: 8 }}>
+          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 12, fontStyle: 'italic', color: '#C8C4DC', opacity: 0.7, lineHeight: 1.3, marginBottom: 6 }}>
+            Plan sessions with the atmosphere, not against it.
+          </div>
+          <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 14, fontWeight: 500, color: '#A8DADC', letterSpacing: 1 }}>airas.app</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#C8C4DC', opacity: 0.3, marginTop: 2 }}>Free · No signup · Live data</div>
         </div>
       </CardShell>
     </div>

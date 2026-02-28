@@ -21,20 +21,16 @@ import {
 } from '@/lib/promo-studio'
 import {
   Card1Daily,
-  Card2Trend,
-  Card3Modalities,
-  Card4PollenUv,
-  Card5Forecast,
+  Card2Advisory,
+  Card3Forecast,
 } from '@/components/promo/StudioCards'
 
 type CardFormat = 'post' | 'story'
 
 const CARD_LABELS = [
-  'Card 1 — The Hook',
-  'Card 2 — The Science',
-  'Card 3 — Practice Guide',
-  'Card 4 — Pollen & UV',
-  'Card 5 — Forecast CTA',
+  'Daily Air Intelligence',
+  'Breathwork Advisory',
+  'Weekly Forecast',
 ]
 
 export default function PromoStudioPage() {
@@ -45,10 +41,10 @@ export default function PromoStudioPage() {
   const [format, setFormat] = useState<CardFormat>('story')
   const [selectedHook, setSelectedHook] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [capturedImages, setCapturedImages] = useState<(string | null)[]>([null, null, null, null, null])
+  const [capturedImages, setCapturedImages] = useState<(string | null)[]>([null, null, null])
   const [downloading, setDownloading] = useState(false)
 
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null, null])
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([null, null, null])
 
   const setCardRef = useCallback((idx: number) => (el: HTMLDivElement | null) => {
     cardRefs.current[idx] = el
@@ -127,7 +123,7 @@ export default function PromoStudioPage() {
   async function downloadAll() {
     setDownloading(true)
     try {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         // Briefly switch to each card to render it, then capture
         setActiveCard(i)
         await new Promise(r => setTimeout(r, 100))
@@ -282,7 +278,7 @@ export default function PromoStudioPage() {
               disabled={downloading}
               className="px-4 py-1.5 rounded-lg font-data text-[10px] tracking-wider bg-white/[0.03] border border-white/[0.08] text-text-secondary/60 hover:border-white/[0.15] transition-all duration-200 disabled:opacity-40"
             >
-              Download All (5)
+              Download All (3)
             </button>
           </div>
 
@@ -302,21 +298,14 @@ export default function PromoStudioPage() {
 
               {/* Card render area */}
               <div className="relative">
-                {/* Only render the active card */}
                 <div style={{ display: activeCard === 0 ? 'block' : 'none' }}>
                   <Card1Daily ref={setCardRef(0)} data={data} location={location} format={format} />
                 </div>
                 <div style={{ display: activeCard === 1 ? 'block' : 'none' }}>
-                  <Card2Trend ref={setCardRef(1)} data={data} location={location} format={format} />
+                  <Card2Advisory ref={setCardRef(1)} data={data} location={location} format={format} />
                 </div>
                 <div style={{ display: activeCard === 2 ? 'block' : 'none' }}>
-                  <Card3Modalities ref={setCardRef(2)} data={data} format={format} />
-                </div>
-                <div style={{ display: activeCard === 3 ? 'block' : 'none' }}>
-                  <Card4PollenUv ref={setCardRef(3)} data={data} format={format} />
-                </div>
-                <div style={{ display: activeCard === 4 ? 'block' : 'none' }}>
-                  <Card5Forecast ref={setCardRef(4)} data={data} format={format} />
+                  <Card3Forecast ref={setCardRef(2)} data={data} location={location} format={format} />
                 </div>
               </div>
 
