@@ -12,7 +12,7 @@ export default function Footer() {
       transition={{ duration: 1 }}
     >
       <div className="font-body text-xs font-light text-text-secondary/[0.35] leading-relaxed space-y-1">
-        <p>Built by Remi — Sound Healer &amp; Developer</p>
+        <p>Built by Remigijus Dzingelevičius — Sound Healer &amp; Developer</p>
         <p>Part of the Harmonic Waves ecosystem</p>
         <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
           <a href="https://airas.app" className="hover:text-accent-primary/60 transition-colors">airas.app</a>

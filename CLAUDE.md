@@ -1046,7 +1046,7 @@ Track custom events:
 Minimal footer consistent with ecosystem:
 
 ```
-Built by Remi — Sound Healer & Developer
+Built by Remigijus Dzingelevičius — Sound Healer & Developer
 Part of the Harmonic Waves ecosystem
 airas.app · shumann.app · lunata.app · tidara.app · sonarus.app
 ```
@@ -1206,6 +1206,6 @@ Airas must meet or exceed these. Every pixel matters. Padding, easing curves, le
 
 ---
 
-*Built by Remi — Sound Healer & Developer*
+*Built by Remigijus Dzingelevičius — Sound Healer & Developer*
 *Part of the Harmonic Waves ecosystem*
 *airas.app*

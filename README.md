@@ -90,6 +90,6 @@ MIT
 
 ## Author
 
-Built by [Remi](https://github.com/RemiDz) — sound healer & developer.
+Built by [Remigijus Dzingelevičius](https://github.com/RemiDz) — sound healer & developer.
 
 Part of the [Harmonic Waves](https://github.com/RemiDz) ecosystem of sound healing tools.
